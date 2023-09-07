@@ -30,7 +30,7 @@ async function getInstanceIdsByName(instanceName: string): Promise<string[]> {
 
 // インスタンス名（Name タグ）をフィルターとして使用してEBSボリュームのスナップショットを作成
 export const handler: Handler = async () => {
-  const instanceName = process.env.INSTANCE_NAME ?? "";
+  const instanceName = "aws-and-infra-web";
 
   const instanceIds = await getInstanceIdsByName(instanceName);
 
