@@ -1,5 +1,6 @@
 *.js
 !jest.config.js
+!.lintstagedrc.js
 *.d.ts
 node_modules
 
