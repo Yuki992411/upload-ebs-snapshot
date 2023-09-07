@@ -3,11 +3,23 @@
     "browser": true,
     "es2021": true
   },
-  "extends": "standard-with-typescript",
+  "extends": ["standard-with-typescript", "plugin:prettier/recommended"],
   "parserOptions": {
     "ecmaVersion": "latest",
     "sourceType": "module",
     "extraFileExtensions": [".json"]
   },
-  "rules": {}
+  "rules": {
+    "no-unused-vars": ["error", { "args": "none" }],
+    "no-unused-expressions": "error",
+    "import/no-relative-parent-imports": "error",
+    "no-console": "error",
+    "import/no-internal-modules": [
+      "error",
+      {
+        // コンポーネントや関数のスコープを制限
+        "forbid": ["**/internal/*"]
+      }
+    ]
+  }
 }
