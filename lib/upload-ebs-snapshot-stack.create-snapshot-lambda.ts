@@ -28,30 +28,88 @@ async function getInstanceIdsByName(instanceName: string): Promise<string[]> {
   return instanceIds;
 }
 
-// インスタンス名（Name タグ）をフィルターとして使用してEBSボリュームのスナップショットを作成
-export const handler: Handler = async () => {
-  const instanceName = "aws-and-infra-web";
+// 同じボリューム内で直近n個のスナップショットを保存するために最も古いのを削除
+async function removeOldestSnapshotOf({
+  volumeId,
+  remainSnapshotNumInVolume,
+}: {
+  volumeId: string;
+  remainSnapshotNumInVolume: number;
+}): Promise<void> {
+  const params = {
+    Filters: [
+      {
+        Name: "volume-id",
+        Values: [volumeId],
+      },
+    ],
+  };
 
-  const instanceIds = await getInstanceIdsByName(instanceName);
+  const res = await ec2.describeSnapshots(params).promise();
 
-  for (const instanceId of instanceIds) {
-    const volumes = await ec2
-      .describeVolumes({
-        Filters: [{ Name: "attachment.instance-id", Values: [instanceId] }],
-      })
-      .promise();
+  if (res.Snapshots === undefined) {
+    throw new Error("Snapshots is undef !!");
+  }
 
-    const volumeIds = volumes.Volumes?.map((vol) => vol.VolumeId ?? "") ?? [];
+  res.Snapshots.sort((a, b) => {
+    if (a.StartTime === undefined || b.StartTime === undefined) {
+      throw new Error("StartTime is undefined for one or both snapshots !");
+    }
 
-    for (const volumeId of volumeIds) {
-      if (volumeId === "") continue;
+    return new Date(a.StartTime).getTime() - new Date(b.StartTime).getTime();
+  });
 
+  if (
+    !(res.Snapshots[0] == null) &&
+    res.Snapshots.length > remainSnapshotNumInVolume
+  ) {
+    const deleteSnapshotId = res.Snapshots[0].SnapshotId ?? "";
+
+    if (deleteSnapshotId !== "") {
       await ec2
-        .createSnapshot({
-          VolumeId: volumeId,
-          Description: `Snapshot for ${volumeId} in ${instanceName}`,
+        .deleteSnapshot({
+          SnapshotId: deleteSnapshotId,
         })
         .promise();
     }
+  }
+}
+
+// インスタンス名（Name タグ）をフィルターとして使用してEBSボリュームのスナップショットを作成
+// 同じボリューム内で直近n個のスナップショットを保存
+export const handler: Handler = async () => {
+  const instanceName = "aws-and-infra-web";
+  const remainSnapshotNumInVolume = 5;
+
+  try {
+    const instanceIds = await getInstanceIdsByName(instanceName);
+
+    for (const instanceId of instanceIds) {
+      const volumes = await ec2
+        .describeVolumes({
+          Filters: [{ Name: "attachment.instance-id", Values: [instanceId] }],
+        })
+        .promise();
+
+      const volumeIds = volumes.Volumes?.map((vol) => vol.VolumeId ?? "") ?? [];
+
+      for (const volumeId of volumeIds) {
+        if (volumeId === "") continue;
+
+        await ec2
+          .createSnapshot({
+            VolumeId: volumeId,
+            Description: `Snapshot for ${volumeId} in ${instanceName}`,
+          })
+          .promise();
+
+        await removeOldestSnapshotOf({
+          volumeId,
+          remainSnapshotNumInVolume,
+        });
+      }
+    }
+  } catch (err: any) {
+    throw new Error(`An error occurred (エラー発生): ${err.message}`);
   }
 };

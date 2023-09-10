@@ -23,6 +23,8 @@ export class UploadEbsSnapshotStack extends Stack {
             "ec2:DescribeInstances",
             "ec2:DescribeVolumes",
             "ec2:CreateSnapshot",
+            "ec2:DescribeSnapshots",
+            "ec2:DeleteSnapshot",
           ],
           effect: Effect.ALLOW,
           resources: ["*"],
