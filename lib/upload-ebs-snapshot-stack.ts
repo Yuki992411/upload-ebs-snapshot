@@ -1,27 +1,24 @@
-import * as cdk from "aws-cdk-lib";
-import * as events from "aws-cdk-lib/aws-events";
-import * as targets from "aws-cdk-lib/aws-events-targets";
-import * as lambda from "aws-cdk-lib/aws-lambda";
+import { Duration, Stack, type StackProps } from "aws-cdk-lib";
+import { Rule, Schedule } from "aws-cdk-lib/aws-events";
+import { LambdaFunction } from "aws-cdk-lib/aws-events-targets";
+import { Runtime } from "aws-cdk-lib/aws-lambda";
+import { NodejsFunction } from "aws-cdk-lib/aws-lambda-nodejs";
 import { type Construct } from "constructs";
 
-export class UploadEbsSnapshotStack extends cdk.Stack {
-  constructor(scope: Construct, id: string, props?: cdk.StackProps) {
+export class UploadEbsSnapshotStack extends Stack {
+  constructor(scope: Construct, id: string, props?: StackProps) {
     super(scope, id, props);
 
-    const createSnapshotLambda = new lambda.Function(
+    const createSnapshotLambda = new NodejsFunction(
       this,
-      "CreateSnapshotLambda",
-      {
-        runtime: lambda.Runtime.NODEJS_18_X,
-        code: lambda.Code.fromAsset("lambda"),
-        handler: "create-snapshot.handler",
-      }
+      "create-snapshot-lambda",
+      { runtime: Runtime.NODEJS_18_X }
     );
 
-    const rule = new events.Rule(this, "Rule", {
-      schedule: events.Schedule.rate(cdk.Duration.days(1)),
+    const rule = new Rule(this, "Rule", {
+      schedule: Schedule.rate(Duration.days(1)),
     });
 
-    rule.addTarget(new targets.LambdaFunction(createSnapshotLambda));
+    rule.addTarget(new LambdaFunction(createSnapshotLambda));
   }
 }
